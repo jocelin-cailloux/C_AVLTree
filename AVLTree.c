@@ -18,7 +18,7 @@ AVLTree *AVLTree_create() {
     tree->length = 0;
 }
 
-AVLTree_node *AVLTree_nodeCreate(AVLTree_node *parent, unsigned int id, void *item) {
+AVLTree_node *AVLTree_nodeCreate(AVLTree_node *parent, int id, void *item) {
     AVLTree_node *node = (AVLTree_node *) malloc(sizeof(AVLTree_node));
     node->id = id;
     node->parent = parent;
@@ -33,7 +33,7 @@ unsigned int AVLTree_getLength(AVLTree *tree) {
     return tree->length;
 }
 
-bool AVLTree_push(AVLTree *tree, unsigned int id, void *item) {
+bool AVLTree_push(AVLTree *tree, int id, void *item) {
     //printf("----- IN INSERT\n");
     AVLTree_node *node = tree->root;
     if (node == NULL) {
@@ -104,8 +104,9 @@ bool AVLTree_push(AVLTree *tree, unsigned int id, void *item) {
 
     return true;
 }
+
 #if 0
-void *AVLTree_pop(AVLTree *tree, unsigned int id) {
+void *AVLTree_pop(AVLTree *tree, int id) {
     AVLTree_node *node = tree->root;
     while ((node != NULL) && (node->id != id)) {
         if (node->id < id) {
@@ -309,7 +310,7 @@ void AVLTree_RL(AVLTree *tree, AVLTree_node *node) {
     grandChild->balance = 0;
 }
 
-void *AVLTree_getItem(AVLTree *tree, unsigned int id) {
+void *AVLTree_getItem(AVLTree *tree, int id) {
     AVLTree_node *node = tree->root;
     while ((node != NULL) && (node->id != id)) {
         if (node->id > id) {
@@ -318,7 +319,64 @@ void *AVLTree_getItem(AVLTree *tree, unsigned int id) {
             node = node->rightChild;
         }
     }
-    return node->item;
+    if (node == NULL) {
+        return NULL;
+    } else {
+        return node->item;
+    }
+}
+
+void *AVLTree_getClosestItemLow(AVLTree *tree, int id) {
+    AVLTree_node *node_res = NULL;
+
+    AVLTree_node *node = tree->root;
+    //printf("START\n");
+    while ((node != NULL) && (node->id != id)) {
+        //printf("id: %d / value: %.2f\n", node->id, (double *) node->item);
+        if (node->id > id) {
+            //printf("left child\n");
+            node = node->leftChild;
+        } else {
+            //printf("right child\n");
+            node_res = node;
+            node = node->rightChild;
+        }
+    }
+    
+    if (node != NULL) {
+        //printf("exact id found\n");
+        node_res = node;
+    }
+    if (node_res == NULL) {
+        //printf("NULL\n");
+        return NULL;
+    } else {
+        //printf("return %.2f\n", (double *) node_res->item);
+        return node_res->item;
+    }
+}
+
+void *AVLTree_getClosestItemHigh(AVLTree *tree, int id) {
+    AVLTree_node *node_res = NULL;
+
+    AVLTree_node *node = tree->root;
+    while ((node != NULL) && (node->id != id)) {
+        if (node->id < id) {
+            node = node->rightChild;
+        } else {
+            node_res = node;
+            node = node->leftChild;
+        }
+    }
+    
+    if (node != NULL) {
+        node_res = node;
+    }
+    if (node_res == NULL) {
+        return NULL;
+    } else {
+        return node_res->item;
+    }
 }
 
 void AVLTree_debugPrint(AVLTree *tree) {
@@ -380,18 +438,69 @@ void AVLTree_debugPrint(AVLTree *tree) {
 
 void AVLTree_delete(AVLTree *tree) {
 
+
 }
 
 void AVLTree_deleteFull(AVLTree *tree, deleteFunction *deleteItem) {
-    int *test = (int *) malloc(sizeof(int));
-    *test = 42;
-    deleteItem((void*) test);
+    /* 0 means that the last visited node was the parent
+     * 1 means that the last visited node is the left child
+     * 2 means that the last visited node is the right child
+     */
+    int childrenType = 0;
+    AVLTree_node *node = tree->root;
+    while (node != NULL) {
+        if (childrenType == 0) {
+            if (node->leftChild != NULL) {
+                node = node->leftChild;
+            } else if (node->rightChild != NULL) {
+                node = node->rightChild;
+            } else {
+                if (node->parent != NULL) {
+                    if (node->parent->leftChild == node) {
+                        childrenType = 1;
+                    } else {
+                        childrenType = 2;
+                    }
+                }
+                deleteItem(node->item);
+                AVLTree_node *nodeToDelete = node;
+                node = node->parent;
+                free(nodeToDelete);
+            }
+        } else if (childrenType == 1) {
+            if (node->rightChild != NULL) {
+                node = node->rightChild;
+                childrenType = 0;
+            } else {
+                if (node->parent != NULL) {
+                    if (node->parent->leftChild == node) {
+                        childrenType = 1;
+                    } else {
+                        childrenType = 2;
+                    }
+                }
+                deleteItem(node->item);
+                AVLTree_node *nodeToDelete = node;
+                node = node->parent;
+                free(nodeToDelete);
+            }
+        } else {
+            if (node->parent != NULL) {
+                if (node->parent->leftChild == node) {
+                    childrenType = 1;
+                } else {
+                    childrenType = 2;
+                }
+            }
+            deleteItem(node->item);
+            AVLTree_node *nodeToDelete = node;
+            node = node->parent;
+            free(nodeToDelete);
+        }
+    }
 }
 
-void printTest(void *item) {
-    printf("COCORICO MA DOUCE NONO %d\n", *(int*) item);
-}
-
+/*
 int main() {
     AVLTree *tree = AVLTree_create();
 
@@ -412,3 +521,4 @@ int main() {
 
     return 0;
 }
+*/
